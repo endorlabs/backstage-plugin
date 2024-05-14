@@ -1,4 +1,4 @@
-import { EndorConfig } from "./types/project";
+import { EndorConfig } from "./types/config";
 
 export type TokenResponse = {
     token: string;

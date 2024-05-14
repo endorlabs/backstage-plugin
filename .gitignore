@@ -1,3 +1,21 @@
-
-dist/
+# Node modules
 node_modules/
+
+# TypeScript build artifacts
+dist/
+dist-types/
+tsconfig.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE and editor specific files
+.vscode/

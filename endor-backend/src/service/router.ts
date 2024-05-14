@@ -29,13 +29,12 @@ export async function createRouter(
   });
 
   router.get('/namespaces/:namespace/summary/:projectUUID', async (req, res) => {
-    const projectUUID: string = req.params.projectUUID;
-    const namespace: string = req.params.namespace
+    const { namespace, projectUUID } = req.params;
 
     logger.info(`Getting summary for project ${projectUUID}`);
     try {
       const service = await endorSVC.getProjectSummary(projectUUID, namespace);
-      res.send(service);
+      return res.send(service);
     } catch (error) {
 
       logger.error(`error getting Endor data for project ${projectUUID}: ${error}`);

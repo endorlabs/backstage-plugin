@@ -13,7 +13,7 @@ import {
 import { useEndorConfigData, useEndorEntityData } from './config';
 import { ProjectSummary, endorApiRef } from '../../types';
 import { useApi, configApiRef } from '@backstage/core-plugin-api';
-import { BarChart } from '@mui/x-charts';
+import { BarChart, BarItemIdentifier } from '@mui/x-charts';
 import { Grid } from '@material-ui/core';
 import StatusAccordion from './StatusAccordian';
 import { buildEndorFindingsUrl } from '../../helper/endor';
@@ -51,13 +51,14 @@ export const EndorPage = () => {
   }, []);
 
   const chartClickHandler = (
-    _event: any,
-    params: { seriesId: string; dataIndex: number },
+    _event: React.MouseEvent<SVGElement>,
+    barItemIdentifier: BarItemIdentifier
   ) => {
+    const { seriesId, dataIndex } = barItemIdentifier;
     //dataIndex: 0 (total), 1 (reachable)
     //seriesId: FINDING_LEVEL_CRITICAL etc
-    let filter = `${baseFilters.dependency} and spec.level in [${params.seriesId}] and spec.finding_categories contains [FINDING_CATEGORY_VULNERABILITY]`;
-    if (params.dataIndex == 1) {
+    let filter = `${baseFilters.dependency} and spec.level in [${seriesId}] and spec.finding_categories contains [FINDING_CATEGORY_VULNERABILITY]`;
+    if (dataIndex == 1) {
       filter += ` and spec.finding_tags contains [FINDING_TAGS_REACHABLE_FUNCTION]`;
     }
 
