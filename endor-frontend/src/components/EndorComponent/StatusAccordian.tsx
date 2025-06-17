@@ -26,17 +26,18 @@ const StatusAccordion = ({
   link,
 }: StatusAccordionProps) => {
   let statusElement, actionsElement;
+  const findingText = count === 1 ? 'Finding' : 'Findings';
 
   if (count > errorThreshold) {
     statusElement = (
       <StatusError>
-        {title}: {count} Findings
+        {title}: {count} {findingText}
       </StatusError>
     );
   } else if (count > warningThreshold) {
     statusElement = (
       <StatusWarning>
-        {title}: {count} Findings
+        {title}: {count} {findingText}
       </StatusWarning>
     );
   } else {
