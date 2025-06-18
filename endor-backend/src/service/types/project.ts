@@ -8,6 +8,8 @@ export type KeyValueArray = {
 
 export type ProjectSummary = {
     name: string;
+    namespace: string;
+    projectUUID: string;
     total: KeyValueArray;
     reachable: KeyValueArray;
     categories: KeyValueArray
@@ -15,7 +17,7 @@ export type ProjectSummary = {
 
 // Endor service interface
 export interface EndorAPI {
-    getProjectSummary(projectUUID: string, namespace: string): Promise<ProjectSummary>;
+    getProjectSummary(projectUUID: string, repoUrl?: string): Promise<ProjectSummary>;
 }
 
 export type Project = {

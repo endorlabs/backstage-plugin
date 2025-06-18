@@ -3,4 +3,5 @@ export type EndorConfig = {
     apiUrl: string;
     apiKey: string;
     apiSecret: string;
+    namespace: string;
 }
