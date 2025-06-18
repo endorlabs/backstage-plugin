@@ -2,6 +2,21 @@
 
 [![Current Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/endorlabs/backstage-plugin/releases)
 
+## Table of Contents
+
+- [Overview](#overview)
+- [No Warranty](#no-warranty)
+- [Features](#features)
+- [Limitations](#limitations)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Entity Configuration](#entityconfiguration)
+- [Usage](#usage)
+- [Troubleshooting](#troubleshooting)
+- [Releases](#releases)
+- [Future Enhancements](#future-enhancements)
+- [Contributing](#contributing)
+
 ## Overview
 
 This README documentation is intended for the Endor Labs backend and frontend plugins for Backstage, which integrates vulnerability data from Endor Labs into the Backstage ecosystem. These plugins help development teams understand the high-level supply chain risks associated with their software components without having to leave the Backstage portal. The plugins make use of the Endor Labs APIs and so can be customised to meet your specific requirements. 
@@ -18,7 +33,7 @@ By using this software, you acknowledge that you have read this disclaimer, unde
 
 - **Project Summary Integration**: Fetch and display a summary of vulnerability findings related to your project from Endor Labs.
 - **Interactive Charts**: View vulnerability levels (Critical, High, Medium, Low) and interact with them to see detailed filtered results.
-- **Status Accordions**: Detailed panels for various categories like CI/CD, Malware, License Risk, Operational Risk, Secrets, and SCPM (Secure Code Posture Management). The plugin summarises findings in term of categories but it's useful to know that a finding can be in multiple categories.
+- **Status Accordions**: Detailed panels for various categories like SAST, CI/CD, Malware, License Risk, Operational Risk, Secrets, Containers, and RSPM (Repo Security Posture Management). The plugin summarises findings in term of categories (a finding can be in multiple categories).
 - **Dynamic Link Generation**: Generate URLs dynamically to access detailed vulnerability reports based on the filters applied.
 
 ## Limitations
@@ -36,108 +51,106 @@ Before installing the plugin, ensure that you have:
 
 ## Installation
 
-### Installing a Specific Version
-
-You can install either the latest version from the main branch or a specific release version:
-
-```bash
-# Latest version from main branch
-curl -L https://github.com/endorlabs/backstage-plugin/archive/refs/heads/main.zip -o endor.zip
-
-# Specific version (e.g., v0.1.0)
-curl -L https://github.com/endorlabs/backstage-plugin/archive/refs/tags/v0.1.0.zip -o endor.zip
-```
-
-### Installation Steps
-
 1. Run this from the root of your Backstage installation:
 
-```bash {"id":"01HXS2CKPR1PB9WEYSAD8XBMTJ"}
-  # Download the ZIP file (see version options above)
-  curl -L https://github.com/endorlabs/backstage-plugin/archive/refs/heads/main.zip -o endor.zip
+   ```bash
+   # For latest version from main branch
+   curl -L https://github.com/endorlabs/backstage-plugin/archive/refs/heads/main.zip -o endor.zip
 
-  # Extract the plugins from the ZIP archive to the backstage plugins folder
-  unzip endor.zip "backstage-plugin-main/endor-backend/*" "backstage-plugin-main/endor-frontend/*" -d plugins && \
-  mkdir plugins/endor-backend && \
-  mkdir plugins/endor-frontend && \
-  mv plugins/backstage-plugin-main/endor-backend/* plugins/endor-backend/ && \
-  mv plugins/backstage-plugin-main/endor-frontend/* plugins/endor-frontend/ && \
-  rm -rf plugins/backstage-plugin-main && \
-  rm -rf endor.zip
-```
+   # Extract the plugins from the ZIP archive to the backstage plugins folder
+   unzip endor.zip "backstage-plugin-main/endor-backend/*" "backstage-plugin-main/endor-frontend/*" -d plugins && \
+   mkdir -p plugins/endor-backend plugins/endor-frontend && \
+   mv plugins/backstage-plugin-main/endor-backend/* plugins/endor-backend/ && \
+   mv plugins/backstage-plugin-main/endor-frontend/* plugins/endor-frontend/ && \
+   rm -rf plugins/backstage-plugin-main && \
+   rm -rf endor.zip
+   ```
+
+   Or for a specific version:
+
+   ```bash
+   # Set the version you want to install
+   VERSION=0.1.1
+
+   # Download and extract the specific version
+   curl -L https://github.com/endorlabs/backstage-plugin/archive/refs/tags/$VERSION.zip -o endor.zip
+
+   # Extract the plugins from the ZIP archive to the backstage plugins folder
+   # When downloading a tag, GitHub creates a folder named 'backstage-plugin-$VERSION'
+   unzip endor.zip "backstage-plugin-$VERSION/endor-backend/*" "backstage-plugin-$VERSION/endor-frontend/*" -d plugins && \
+   mkdir -p plugins/endor-backend plugins/endor-frontend && \
+   mv plugins/backstage-plugin-$VERSION/endor-backend/* plugins/endor-backend/ && \
+   mv plugins/backstage-plugin-$VERSION/endor-frontend/* plugins/endor-frontend/ && \
+   rm -rf plugins/backstage-plugin-$VERSION && \
+   rm -rf endor.zip
+   ```
 
 2. Install the necessary dependencies:
 
-```bash {"id":"01HXS2CKPR1PB9WEYSAE8WP06H"}
-yarn install
-```
+   ```bash
+   yarn install
+   ```
 
-### Backend Plugin
+3. Add the backend plugin to the `packages/backend/src/index.ts` file like so:
 
-1. Add the plugin to the `packages/backend/src/index.ts` file like so:
+   ```typescript
+   import endorBackendPlugin from '@endorlabs/backend-plugin'; #Import Endor Labs backend plugin
 
-```typescript {"id":"01HXS36AQM476VJ90SRMVE212A"}
-  import endorBackendPlugin from '@endorlabs/backend-plugin';
+   const backend = createBackend();
 
-  const backend = createBackend();
+   ... #After existing plugins
 
-  ...
+   backend.add(endorBackendPlugin);
+   ```
 
-  backend.add(endorBackendPlugin);
-```
+4. Create a set of API keys with the read-only permission to the root namespace within the Endor Labs platform [documentation](https://docs.endorlabs.com/administration/api-keys/)
 
-2. Create a set of API keys with the read-only permission to the root namespace within the Endor Labs platform [documentation](https://docs.endorlabs.com/administration/api-keys/)
+5. Add the following to your relevant installation file (e.g. app-config.local.yaml):
 
-3. Add the following to your relevant installation file (e.g. app-config.local.yaml):
+   ```yaml
+   endor:
+     apiKey: <Your Endor Labs API Key>
+     apiSecret: <Your Endor Labs API Secret>
+     namespace: <Your root Endor Labs namespace>
+     apiUrl: <Your Endor Labs API Url, e.g. https://api.endorlabs.com>
+     appUrl: <Your Endor Labs Web Url; e.g. https://app.endorlabs.com> #Optional, defaults to https://app.endorlabs.com
+   ```
 
-```yaml {"id":"01HXS36AQM476VJ90SRPB64A7D"}
-endor:
-  apiKey: <Your Endor Labs API Key>
-  apiSecret: <Your Endor Labs API Secret>
-  namespace: <Your root Endor Labs namespace>
-  apiUrl: <Your Endor Labs API Url, e.g. https://api.endorlabs.com>
-  appUrl: <Your Endor Labs Web Url; e.g. https://app.endorlabs.com> #Optional, defaults to https://app.endorlabs.com
-```
+6. Run `yarn dev` or `yarn start` from the root folder to start Backstage.
 
-4. Run `yarn dev` or `yarn start` from the root folder to start Backstage.
+7. Navigate to [/endor-backend/health](http://localhost:7007/api/endor-backend/health) to verify you receive a HTTP 200/OK response. Test the backend plugin is working with a known project uuid:
 
-5. Navigate to [/endor-backend/health](http://localhost:7007/api/endor-backend/health) to verify you receive a HTTP 200/OK response.
+   ```bash
+   curl -X POST -H "Content-Type: application/json" -d '{"projectUUID": "<your-valid-uuid>"}' http://localhost:7007/api/endor-backend/summary
+   ```
 
-6. Optional: Test the backend plugin is working with a known project uuid:
+8. Add the frontend plugin to your to your `/packages/app/src/App.tsx` file:
 
-```bash
-curl -X POST -H "Content-Type: application/json" -d '{"projectUUID": "<your-valid-uuid>"}' http://localhost:7007/api/endor-backend/summary
-```
+   ```typescript
+   import { EndorFrontendPage } from "@endorlabs/frontend-plugin"; #Import Endor Labs frontend plugin
+   const routes = (
+     <FlatRoutes>
+       ... #After existing routes
+       <Route path="/endor" element={<EndorFrontendPage />} />
+     </FlatRoutes>
+   );
+   ```
 
-### Frontend Plugin
+9. Add the frondend plugin page to your `/packages/app/src/components/catalog/EntityPage.tsx` file (or another component if preferred):
 
-1. Add the EndorFrontendPage to your `/packages/app/src/App.tsx` file:
+   ```typescript
+   import { EndorFrontendPage } from "@endorlabs/frontend-plugin"; #Import Endor Labs frontend plugin
+   const websiteEntityPage = (
+     <EntityLayout>
+       ... #After existing tabs
+       <EntityLayout.Route path="/endor" title="Endor Labs">
+         <EndorFrontendPage />
+       </EntityLayout.Route>
+     </EntityLayout>
+   );
+   ```
 
-```typescript {"id":"01HXS2CKPR1PB9WEYSAGDC5SKY"}
-import { EndorFrontendPage } from "@endorlabs/frontend-plugin";
-const routes = (
-  <FlatRoutes>
-    ...
-    <Route path="/endor" element={<EndorFrontendPage />} />
-  </FlatRoutes>
-);
-```
-
-2. Add the EndorFrontendPage to your `/packages/app/src/components/catalog/EntityPage.tsx` file (or another component if preferred):
-
-```typescript {"id":"01HXS2CKPR1PB9WEYSAKMNPTN9"}
-import { EndorFrontendPage } from "@endorlabs/frontend-plugin";
-const websiteEntityPage = (
-  <EntityLayout>
-    ...
-    <EntityLayout.Route path="/endor" title="Endor Labs">
-      <EndorFrontendPage />
-    </EntityLayout.Route>
-  </EntityLayout>
-);
-```
-
-## Configuration
+## Entity Configuration
 
 Ensure your Backstage components include one of the following [annotations](https://backstage.io/docs/features/software-catalog/well-known-annotations/) (in order of precedence):
 
@@ -161,6 +174,23 @@ Common issues and their solutions:
 - **No data appears in the frontend**: Check that your component has the correct annotations and that the project UUID exists in Endor Labs
 - **Installation errors**: Make sure you're using a compatible version of Backstage with the new backend system
 
+## Releases
+
+Below is a list of available releases. You can also view all releases on the [GitHub Releases page](https://github.com/endorlabs/backstage-plugin/releases).
+
+| Version | Backstage Version | Description |
+|---------|--------------|-------------|
+| [0.1.0](https://github.com/endorlabs/backstage-plugin/releases/tag/0.1.0) | 1.26.0| Initial experimental release with core functionality. |
+| [0.1.1](https://github.com/endorlabs/backstage-plugin/releases/tag/0.1.1) | 1.40.0| Removed requirement for Endor Labs annotations. Implemented support for latest Endor Labs findings categories. |
+
+Each release includes source code and installation instructions. You can download a specific version using the instructions in the [Installation](#installation) section.
+
+## Future Enhancements
+
+- Extend to provide support for a package annotation (to support monorepo configurations)
+- Publish the plugins to NPM
+- List plugin within the Backstage [plugin directory](https://backstage.io/docs/plugins/add-to-directory)
+
 ## Contributing
 
 We welcome contributions to improve the Endor Labs Backstage Plugin! Here's how you can help:
@@ -169,9 +199,3 @@ We welcome contributions to improve the Endor Labs Backstage Plugin! Here's how 
 2. **Create a Branch**: Make your changes in a new branch
 3. **Submit a Pull Request**: Once your changes are ready, submit a pull request
 4. **Code Review**: Wait for a maintainer to review your changes
-
-## Future Enhancements
-
-- Extend to provide support for a package annotation (to support monorepo configurations)
-- Publish the plugins to NPM
-- List plugin within the Backstage [plugin directory](https://backstage.io/docs/plugins/add-to-directory)
