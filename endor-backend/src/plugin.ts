@@ -1,4 +1,3 @@
-import { loggerToWinstonLogger } from '@backstage/backend-common';
 import {
   createBackendPlugin,
   coreServices,
@@ -20,9 +19,10 @@ export const endorBackendPlugin = createBackendPlugin({
         config: coreServices.rootConfig,
       },
       async init({ http, logger, config }) {
+        logger.info('Endor backend plugin initializing');
         http.use(
           await createRouter({
-            logger: loggerToWinstonLogger(logger),
+            logger,
             config,
           }),
         );

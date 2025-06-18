@@ -9,9 +9,10 @@ import {
   WarningPanel,
   InfoCard,
   CodeSnippet,
+  ErrorPanel,
 } from '@backstage/core-components';
 import { useEndorConfigData, useEndorEntityData } from './config';
-import { ProjectSummary, endorApiRef } from '../../types';
+import { ProjectSummary, endorApiRef, EndorErrorType } from '../../types';
 import { useApi, configApiRef } from '@backstage/core-plugin-api';
 import { BarChart, BarItemIdentifier } from '@mui/x-charts';
 import { Grid } from '@material-ui/core';
@@ -20,12 +21,12 @@ import { buildEndorFindingsUrl } from '../../helper/endor';
 
 export const EndorPage = () => {
   const { entity } = useEntity();
-  const { namespace, projectUUID: projectUUID } = useEndorEntityData({
+  const { projectUUID, repoUrl } = useEndorEntityData({
     entity,
   });
 
   const [projectSummary, setProjectSummary] = useState({} as any);
-  const [error, setError] = useState({} as any);
+  const [error, setError] = useState<{message: string; errorType?: string} | null>(null);
 
   // Config Endor data
   const config = useApi(configApiRef);
@@ -36,13 +37,16 @@ export const EndorPage = () => {
     try {
       const projectSummary: ProjectSummary = await endorApi.getProjectSummary(
         projectUUID,
-        namespace,
+        repoUrl,
       );
       setProjectSummary(projectSummary);
       setError(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch data:', error);
-      setError(error);
+      setError({
+        message: error.message || 'Unknown error',
+        errorType: error.errorType,
+      });
     }
   };
 
@@ -62,7 +66,7 @@ export const EndorPage = () => {
       filter += ` and spec.finding_tags contains [FINDING_TAGS_REACHABLE_FUNCTION]`;
     }
 
-    const url = buildEndorFindingsUrl(namespace, projectUUID, filter, baseUrl);
+    const url = buildEndorFindingsUrl(projectSummary.namespace, projectUUID, filter, baseUrl);
 
     window.open(url, '_blank');
   };
@@ -89,7 +93,7 @@ export const EndorPage = () => {
       explanation: "You have {count} findings for operational risk including Outdated Dependencies, Unmaintained Dependencies, Unpinned Direct Dependencies, Unused Direct Dependencies, License Risks and more.",
       warningThreshold: 0,
       errorThreshold: 5,
-      link: buildEndorFindingsUrl(namespace, projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_OPERATIONAL"])`, baseUrl),
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_OPERATIONAL"])`, baseUrl),
     },
     license: {
       key: 'FINDING_CATEGORY_LICENSE_RISK',
@@ -98,7 +102,7 @@ export const EndorPage = () => {
       explanation: "You have {count} dependencies which may introduce license risk such as missing licenses, conflicting licenses, or licenses which violate your policies.",
       warningThreshold: 0,
       errorThreshold: 3,
-      link: buildEndorFindingsUrl(namespace, projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_LICENSE_RISK"])`, baseUrl),
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_LICENSE_RISK"])`, baseUrl),
     },
     malware: {
       key: 'FINDING_CATEGORY_MALWARE',
@@ -107,7 +111,7 @@ export const EndorPage = () => {
       explanation: "You have {count} findings for malicious dependencies.",
       warningThreshold: 0,
       errorThreshold: 1,
-      link: buildEndorFindingsUrl(namespace, projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_MALWARE"])`, baseUrl),
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_MALWARE"])`, baseUrl),
     },
     aiModels: {
       key: 'FINDING_CATEGORY_AI_MODELS',
@@ -116,7 +120,7 @@ export const EndorPage = () => {
       explanation: "You have {count} findings for risks associated with AI models.",
       warningThreshold: 0,
       errorThreshold: 5,
-      link: buildEndorFindingsUrl(namespace, projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_AI_MODELS"])`, baseUrl),
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_AI_MODELS"])`, baseUrl),
     },
     sast: {
       key: 'FINDING_CATEGORY_SAST',
@@ -125,7 +129,7 @@ export const EndorPage = () => {
       explanation: "You have {count} findings for Static Application Security Testing (SAST).",
       warningThreshold: 0,
       errorThreshold: 2,
-      link: buildEndorFindingsUrl(namespace, projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_SAST"])`, baseUrl),
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_SAST"])`, baseUrl),
     },
     secrets: {
       key: 'FINDING_CATEGORY_SECRETS',
@@ -134,7 +138,7 @@ export const EndorPage = () => {
       explanation: "You have {count} potential secrets stored within your project's source code. Secrets are access credentials that provide access to key resources and services, such as passwords, API keys, and personal access tokens.",
       warningThreshold: 0,
       errorThreshold: 1,
-      link: buildEndorFindingsUrl(namespace, projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_SECRETS"])`, baseUrl),
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_SECRETS"])`, baseUrl),
     },
     cicd: {
       key: 'FINDING_CATEGORY_CICD',
@@ -143,7 +147,7 @@ export const EndorPage = () => {
       explanation: "You have {count} findings for CI/CD which include vulnerabilities in your GitHub Actions, GitHub workflows or other CI/CD tools.",
       warningThreshold: 0,
       errorThreshold: 1,
-      link: buildEndorFindingsUrl(namespace, projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_CICD"])`, baseUrl),
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_CICD"])`, baseUrl),
     },
     scpm: {
       key: 'FINDING_CATEGORY_SCPM',
@@ -152,7 +156,7 @@ export const EndorPage = () => {
       explanation: "You have {count} findings for Repo Security Posture Management. Strong information security practices are necessary to secure your open source code used in your development and delivery infrastructure.",
       warningThreshold: 0,
       errorThreshold: 2,
-      link: buildEndorFindingsUrl(namespace, projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_SCPM"])`, baseUrl),
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_SCPM"])`, baseUrl),
     },
     containers: {
       key: 'FINDING_CATEGORY_CONTAINERS',
@@ -161,35 +165,76 @@ export const EndorPage = () => {
       explanation: "You have {count} findings for Container scans. These are vulnerabilities in OS packages, language-specific packages, and application dependencies.",
       warningThreshold: 0,
       errorThreshold: 2,
-      link: buildEndorFindingsUrl(namespace, projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_CONTAINERS"])`, baseUrl),
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_CONTAINERS"])`, baseUrl),
     },
+  };
+
+  const renderErrorContent = () => {
+    if (!error) return null;
+    
+    switch (error.errorType) {
+      case EndorErrorType.MISSING_ANNOTATION:
+        return (
+          <WarningPanel
+            title="Missing annotation"
+            severity="info"
+          >
+            Please add one of these annotations to your catalog yaml file:
+            <CodeSnippet
+              text={
+                `endorlabs.com/project-uuid: <your project uuid>
+backstage.io/source-location: <your repository url>
+github.com/project-slug: <owner>/<repo>`
+              }
+              language={'YAML'}
+            />
+          </WarningPanel>
+        );
+        
+      case EndorErrorType.PROJECT_NOT_FOUND:
+        return (
+          <WarningPanel
+            title="Project not found"
+            severity="warning"
+          >
+            The project UUID '{projectUUID}' does not exist in Endor Labs.
+          </WarningPanel>
+        );
+        
+      case EndorErrorType.REPO_NOT_FOUND:
+        return (
+          <WarningPanel
+            title="Repository not scanned"
+            severity="warning"
+          >
+            The repository '{repoUrl}' has not been scanned in Endor Labs yet.
+          </WarningPanel>
+        );
+        
+      case EndorErrorType.API_ERROR:
+      default:
+        return (
+          <ErrorPanel
+            title="API Error"
+            error={new Error(error.message || "Connection error to Endor Labs API")}
+          >
+            Please verify your API credentials and configuration.
+          </ErrorPanel>
+        );
+    }
   };
 
   return (
     <Page themeId="tool">
       {error ? (
-        <WarningPanel
-          title="Entity missing annotation"
-          message={
-            <>
-              Please verify your credentials and add the following annotations into your catalog yaml file:
-            </>
-          }
-        >
-          <CodeSnippet
-            text={
-              'endorlabs.com/namespace: <your namespace>\nendorlabs.com/project-uuid: <your project uuid>'
-            }
-            language={'YAML'}
-          />
-        </WarningPanel>
+        renderErrorContent()
       ) : (
         <>
           <Header
             title="Endor Labs"
             subtitle="AppSec for the Software Development Revolution"
           >
-            <HeaderLabel label="Endor Namespace" value={namespace} />
+            <HeaderLabel label="Endor Namespace" value={projectSummary.namespace} />
             <HeaderLabel label="Project Name" value={projectSummary.name} />
           </Header>
           <Content>
