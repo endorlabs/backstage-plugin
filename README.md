@@ -100,7 +100,7 @@ Before installing the plugin, ensure that you have:
 
    ... #After existing plugins
 
-   backend.add(endorBackendPlugin);
+   backend.add(endorBackendPlugin); #before backend.start();
    ```
 
 4. Create a set of API keys with the read-only permission to the root namespace within the Endor Labs platform [documentation](https://docs.endorlabs.com/administration/api-keys/)
