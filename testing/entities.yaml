@@ -1,0 +1,194 @@
+---
+# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-system
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: examples
+spec:
+  owner: guests
+---
+# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-component
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: example-website
+spec:
+  type: website
+  lifecycle: experimental
+  owner: guests
+  system: examples
+  providesApis: [example-grpc-api]
+---
+# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-api
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: example-grpc-api
+spec:
+  type: grpc
+  lifecycle: experimental
+  owner: guests
+  system: examples
+  definition: |
+    syntax = "proto3";
+
+    service Exampler {
+      rpc Example (ExampleMessage) returns (ExampleMessage) {};
+    }
+
+    message ExampleMessage {
+      string example = 1;
+    };
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dotNET-ewok-with-uuid
+  description: Just a regular old vulnerable .NET project
+  labels:
+    example.com/custom: custom_label_value
+  annotations:
+    endorlabs.com/project-uuid: 683d63aebf24f9f418ce6ccd
+  tags:
+    - dotnet
+  links:
+    - url: https://admin.example-org.com
+      title: Admin Dashboard
+      icon: dashboard
+      type: admin-dashboard
+spec:
+  type: website
+  lifecycle: production
+  owner: solution-architecture-team
+  system: public-websites
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dotNET-ewok-with-project-slug
+  description: Just a regular old vulnerable .NET project
+  labels:
+    example.com/custom: custom_label_value
+  annotations:
+    github.com/project-slug: TreetopTechie/dotNET-ewok
+  tags:
+    - dotnet
+  links:
+    - url: https://admin.example-org.com
+      title: Admin Dashboard
+      icon: dashboard
+      type: admin-dashboard
+spec:
+  type: website
+  lifecycle: production
+  owner: solution-architecture-team
+  system: public-websites
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dotNET-ewok-with-source-location
+  description: Just a regular old vulnerable .NET project
+  labels:
+    example.com/custom: custom_label_value
+  annotations:
+    backstage.io/source-location: https://github.com/TreetopTechie/dotNET-ewok.git
+  tags:
+    - dotnet
+  links:
+    - url: https://admin.example-org.com
+      title: Admin Dashboard
+      icon: dashboard
+      type: admin-dashboard
+spec:
+  type: website
+  lifecycle: production
+  owner: solution-architecture-team
+  system: public-websites
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dotNET-ewok-no-annotations
+  description: Just a regular old vulnerable .NET project
+  labels:
+    example.com/custom: custom_label_value
+  annotations:
+  tags:
+    - dotnet
+  links:
+    - url: https://admin.example-org.com
+      title: Admin Dashboard
+      icon: dashboard
+      type: admin-dashboard
+spec:
+  type: website
+  lifecycle: production
+  owner: solution-architecture-team
+  system: public-websites
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dotNET-ewok-invalid-projectuuid
+  description: Just a regular old vulnerable .NET project
+  labels:
+    example.com/custom: custom_label_value
+  annotations:
+    endorlabs.com/project-uuid: 683d63aebf24f9f418ce6c1
+  tags:
+    - dotnet
+  links:
+    - url: https://admin.example-org.com
+      title: Admin Dashboard
+      icon: dashboard
+      type: admin-dashboard
+spec:
+  type: website
+  lifecycle: production
+  owner: solution-architecture-team
+  system: public-websites
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dotNET-ewok-with-invalid-project-slug
+  description: Just a regular old vulnerable .NET project
+  labels:
+    example.com/custom: custom_label_value
+  annotations:
+    github.com/project-slug: TreetopTechie/dotNET-ewoky
+  tags:
+    - dotnet
+  links:
+    - url: https://admin.example-org.com
+      title: Admin Dashboard
+      icon: dashboard
+      type: admin-dashboard
+spec:
+  type: website
+  lifecycle: production
+  owner: solution-architecture-team
+  system: public-websites
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dotNET-ewok-with-invalid-source-location
+  description: Just a regular old vulnerable .NET project
+  labels:
+    example.com/custom: custom_label_value
+  annotations:
+    backstage.io/source-location: https://github.com/TreetopTechie/dotNET-ewoky.git
+  tags:
+    - dotnet
+  links:
+    - url: https://admin.example-org.com
+      title: Admin Dashboard
+      icon: dashboard
+      type: admin-dashboard
+spec:
+  type: website
+  lifecycle: production
+  owner: solution-architecture-team
+  system: public-websites

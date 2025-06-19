@@ -19,3 +19,5 @@ Thumbs.db
 
 # IDE and editor specific files
 .vscode/
+testing/app-config.local.yaml
+testing/backstage/
