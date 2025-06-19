@@ -66,7 +66,7 @@ export const EndorPage = () => {
       filter += ` and spec.finding_tags contains [FINDING_TAGS_REACHABLE_FUNCTION]`;
     }
 
-    const url = buildEndorFindingsUrl(projectSummary.namespace, projectUUID, filter, baseUrl);
+    const url = buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, filter, baseUrl);
 
     window.open(url, '_blank');
   };
@@ -248,7 +248,7 @@ github.com/project-slug: <owner>/<repo>`
                     layout="horizontal"
                     margin={{ left: 75 }}
                     yAxis={[
-                      { scaleType: 'band', data: ['Total', 'Reachable'] },
+                      { scaleType: 'band', data: ['Total', 'Reachable'], width: 80 },
                     ]}
                     series={[
                       {
