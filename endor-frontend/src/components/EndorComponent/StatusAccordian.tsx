@@ -47,7 +47,9 @@ const StatusAccordion = ({
   if (count > 0) {
     actionsElement = (
       <AccordionActions>
-        <Button href={link.toJSON()} target="_blank">
+        <Button 
+          onClick={() => window.open(link.toJSON(), '_blank', 'noopener,noreferrer')}
+        >
           Show Me
         </Button>
       </AccordionActions>
