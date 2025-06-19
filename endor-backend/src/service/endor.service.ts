@@ -73,7 +73,7 @@ export class EndorService implements EndorAPI {
   private async getTotalVulnerabilities(projectUUID: string, token: string) {
     // Properly encode URL parameters
     const queryParams = new URLSearchParams({
-      'list_parameters.filter': `spec.project_uuid==${projectUUID} and context.type==CONTEXT_TYPE_MAIN and spec.finding_categories contains [FINDING_CATEGORY_VULNERABILITY]`,
+      'list_parameters.filter': `spec.project_uuid==${projectUUID} and context.type==CONTEXT_TYPE_MAIN and spec.finding_categories contains [FINDING_CATEGORY_VULNERABILITY] and spec.finding_tags not contains [FINDING_TAGS_EXCEPTION]`,
       'list_parameters.count': 'false',
       'list_parameters.group.aggregation_paths': 'spec.level'
     });
@@ -96,7 +96,7 @@ export class EndorService implements EndorAPI {
   private async getReachableVulnerabilities(projectUUID: string, token: string) {
     // Properly encode URL parameters
     const queryParams = new URLSearchParams({
-      'list_parameters.filter': `spec.project_uuid==${projectUUID} and context.type==CONTEXT_TYPE_MAIN and spec.finding_tags CONTAINS [\"FINDING_TAGS_REACHABLE_FUNCTION\"]`,
+      'list_parameters.filter': `spec.project_uuid==${projectUUID} and context.type==CONTEXT_TYPE_MAIN and spec.finding_tags contains [FINDING_TAGS_REACHABLE_FUNCTION] and spec.finding_tags not contains [FINDING_TAGS_EXCEPTION]`,
       'list_parameters.count': 'false',
       'list_parameters.group.aggregation_paths': 'spec.level'
     });
@@ -134,7 +134,7 @@ export class EndorService implements EndorAPI {
   private async getFindingsCountByCategory(projectUUID: string, token: string) {
     // Properly encode URL parameters
     const queryParams = new URLSearchParams({
-      'list_parameters.filter': `spec.project_uuid==${projectUUID} and context.type==CONTEXT_TYPE_MAIN`,
+      'list_parameters.filter': `spec.project_uuid==${projectUUID} and context.type==CONTEXT_TYPE_MAIN and spec.finding_tags not contains [FINDING_TAGS_EXCEPTION]`,
       'list_parameters.group.aggregation_paths': 'spec.finding_categories'
     });
 
