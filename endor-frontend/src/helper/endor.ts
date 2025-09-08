@@ -1,8 +1,8 @@
-export function buildEndorFindingsUrl(namespace: string, category: string, filter: string, baseUrl: string) {
+export function buildEndorFindingsUrl(namespace: string, projectUUID: string, filter: string, baseUrl: string) {
     return new URL(
       `/t/${encodeURIComponent(
         namespace
-      )}/findings/${category}/?filter=${encodeURIComponent(filter)}`,
+      )}/projects/${projectUUID}/versions/default/findings/?filter=${encodeURIComponent(filter)}`,
       baseUrl
     );
   }

@@ -9,9 +9,10 @@ import {
   WarningPanel,
   InfoCard,
   CodeSnippet,
+  ErrorPanel,
 } from '@backstage/core-components';
 import { useEndorConfigData, useEndorEntityData } from './config';
-import { ProjectSummary, endorApiRef } from '../../types';
+import { ProjectSummary, endorApiRef, EndorErrorType } from '../../types';
 import { useApi, configApiRef } from '@backstage/core-plugin-api';
 import { BarChart, BarItemIdentifier } from '@mui/x-charts';
 import { Grid } from '@material-ui/core';
@@ -20,12 +21,12 @@ import { buildEndorFindingsUrl } from '../../helper/endor';
 
 export const EndorPage = () => {
   const { entity } = useEntity();
-  const { namespace, projectUUID: projectUUID } = useEndorEntityData({
+  const { projectUUID, repoUrl } = useEndorEntityData({
     entity,
   });
 
   const [projectSummary, setProjectSummary] = useState({} as any);
-  const [error, setError] = useState({} as any);
+  const [error, setError] = useState<{message: string; errorType?: string} | null>(null);
 
   // Config Endor data
   const config = useApi(configApiRef);
@@ -36,13 +37,16 @@ export const EndorPage = () => {
     try {
       const projectSummary: ProjectSummary = await endorApi.getProjectSummary(
         projectUUID,
-        namespace,
+        repoUrl,
       );
       setProjectSummary(projectSummary);
       setError(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch data:', error);
-      setError(error);
+      setError({
+        message: error.message || 'Unknown error',
+        errorType: error.errorType,
+      });
     }
   };
 
@@ -57,114 +61,180 @@ export const EndorPage = () => {
     const { seriesId, dataIndex } = barItemIdentifier;
     //dataIndex: 0 (total), 1 (reachable)
     //seriesId: FINDING_LEVEL_CRITICAL etc
-    let filter = `${baseFilters.dependency} and spec.level in [${seriesId}] and spec.finding_categories contains [FINDING_CATEGORY_VULNERABILITY]`;
+    let filter = `${baseFilter} and spec.level in [${seriesId}] and spec.finding_categories contains [FINDING_CATEGORY_VULNERABILITY]`;
     if (dataIndex == 1) {
       filter += ` and spec.finding_tags contains [FINDING_TAGS_REACHABLE_FUNCTION]`;
     }
 
-    const url = buildEndorFindingsUrl(namespace, 'dependency', filter, baseUrl);
+    const url = buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, filter, baseUrl);
 
     window.open(url, '_blank');
   };
 
-  const baseFilters = {
-    dependency: `meta.parent_kind==PackageVersion and spec.ecosystem!=ECOSYSTEM_GITHUB_ACTION and spec.finding_tags not contains [FINDING_TAGS_SELF] and spec.project_uuid==${projectUUID}`,
-    package: `meta.parent_kind==PackageVersion and spec.ecosystem!=ECOSYSTEM_GITHUB_ACTION and spec.finding_tags contains [FINDING_TAGS_SELF] and spec.project_uuid==${projectUUID}`,
-    repository: `meta.parent_kind in [Repository,RepositoryVersion] and spec.finding_categories not contains [FINDING_CATEGORY_SECRETS] and spec.project_uuid==${projectUUID}`,
-    secrets: `spec.finding_categories contains [FINDING_CATEGORY_SECRETS] and spec.project_uuid==${projectUUID}`,
+  const baseFilter = `spec.finding_tags not contains ["FINDING_TAGS_EXCEPTION"]`
+
+  // Define category information type
+  type CategoryInfo = {
+    key: string;
+    count: number;
+    link: URL;
+    explanation: string;
+    warningThreshold: number;
+    errorThreshold: number;
+    title: string;
   };
 
-  const metrics = {
-    cicd: projectSummary?.categories?.FINDING_CATEGORY_CICD?.count ?? 0,
-    malware: projectSummary?.categories?.FINDING_CATEGORY_MALWARE?.count ?? 0,
-    license:
-      projectSummary?.categories?.FINDING_CATEGORY_LICENSE_RISK?.count ?? 0,
-    operational:
-      projectSummary?.categories?.FINDING_CATEGORY_OPERATIONAL?.count ?? 0,
-    scpm: projectSummary?.categories?.FINDING_CATEGORY_SCPM?.count ?? 0,
-    secrets: projectSummary?.categories?.FINDING_CATEGORY_SECRETS?.count ?? 0,
-    security: projectSummary?.categories?.FINDING_CATEGORY_SECURITY?.count ?? 0,
-    supply:
-      projectSummary?.categories?.FINDING_CATEGORY_SUPPLY_CHAIN?.count ?? 0,
+  // Define a single consolidated object with all category information
+  const categories: Record<string, CategoryInfo> = {
+    operational: {
+      key: 'FINDING_CATEGORY_OPERATIONAL',
+      count: projectSummary?.categories?.FINDING_CATEGORY_OPERATIONAL?.count ?? 0,
+      title: 'Operational Risk',
+      explanation: "You have {count} findings for operational risk including Outdated Dependencies, Unmaintained Dependencies, Unpinned Direct Dependencies, Unused Direct Dependencies, License Risks and more.",
+      warningThreshold: 0,
+      errorThreshold: 5,
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_OPERATIONAL"])`, baseUrl),
+    },
+    license: {
+      key: 'FINDING_CATEGORY_LICENSE_RISK',
+      count: projectSummary?.categories?.FINDING_CATEGORY_LICENSE_RISK?.count ?? 0,
+      title: 'License Risk',
+      explanation: "You have {count} dependencies which may introduce license risk such as missing licenses, conflicting licenses, or licenses which violate your policies.",
+      warningThreshold: 0,
+      errorThreshold: 3,
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_LICENSE_RISK"])`, baseUrl),
+    },
+    malware: {
+      key: 'FINDING_CATEGORY_MALWARE',
+      count: projectSummary?.categories?.FINDING_CATEGORY_MALWARE?.count ?? 0,
+      title: 'Malware',
+      explanation: "You have {count} findings for malicious dependencies.",
+      warningThreshold: 0,
+      errorThreshold: 1,
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_MALWARE"])`, baseUrl),
+    },
+    aiModels: {
+      key: 'FINDING_CATEGORY_AI_MODELS',
+      count: projectSummary?.categories?.FINDING_CATEGORY_AI_MODELS?.count ?? 0,
+      title: 'AI Models',
+      explanation: "You have {count} findings for risks associated with AI models.",
+      warningThreshold: 0,
+      errorThreshold: 5,
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_AI_MODELS"])`, baseUrl),
+    },
+    sast: {
+      key: 'FINDING_CATEGORY_SAST',
+      count: projectSummary?.categories?.FINDING_CATEGORY_SAST?.count ?? 0,
+      title: 'SAST',
+      explanation: "You have {count} findings for Static Application Security Testing (SAST).",
+      warningThreshold: 0,
+      errorThreshold: 2,
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_SAST"])`, baseUrl),
+    },
+    secrets: {
+      key: 'FINDING_CATEGORY_SECRETS',
+      count: projectSummary?.categories?.FINDING_CATEGORY_SECRETS?.count ?? 0,
+      title: 'Secrets',
+      explanation: "You have {count} potential secrets stored within your project's source code. Secrets are access credentials that provide access to key resources and services, such as passwords, API keys, and personal access tokens.",
+      warningThreshold: 0,
+      errorThreshold: 1,
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_SECRETS"])`, baseUrl),
+    },
+    cicd: {
+      key: 'FINDING_CATEGORY_CICD',
+      count: projectSummary?.categories?.FINDING_CATEGORY_CICD?.count ?? 0,
+      title: 'CI/CD',
+      explanation: "You have {count} findings for CI/CD which include vulnerabilities in your GitHub Actions, GitHub workflows or other CI/CD tools.",
+      warningThreshold: 0,
+      errorThreshold: 1,
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_CICD"])`, baseUrl),
+    },
+    scpm: {
+      key: 'FINDING_CATEGORY_SCPM',
+      count: projectSummary?.categories?.FINDING_CATEGORY_SCPM?.count ?? 0,
+      title: 'Repo Security Posture Management',
+      explanation: "You have {count} findings for Repo Security Posture Management. Strong information security practices are necessary to secure your open source code used in your development and delivery infrastructure.",
+      warningThreshold: 0,
+      errorThreshold: 2,
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_SCPM"])`, baseUrl),
+    },
+    containers: {
+      key: 'FINDING_CATEGORY_CONTAINERS',
+      count: projectSummary?.categories?.FINDING_CATEGORY_CONTAINERS?.count ?? 0,
+      title: 'Containers',
+      explanation: "You have {count} findings for Container scans. These are vulnerabilities in OS packages, language-specific packages, and application dependencies.",
+      warningThreshold: 0,
+      errorThreshold: 2,
+      link: buildEndorFindingsUrl(projectSummary.namespace, projectSummary.projectUUID, `(${baseFilter} and spec.finding_categories contains ["FINDING_CATEGORY_CONTAINERS"])`, baseUrl),
+    },
   };
 
-  const links = {
-    cicd: buildEndorFindingsUrl(
-      namespace,
-      'repository',
-      `${baseFilters.repository} and spec.finding_categories contains [FINDING_CATEGORY_CICD]`,
-      baseUrl,
-    ),
-    malware: buildEndorFindingsUrl(
-      namespace,
-      'dependency',
-      `${baseFilters.dependency} and spec.finding_categories contains [FINDING_CATEGORY_MALWARE]`,
-      baseUrl,
-    ),
-    license: buildEndorFindingsUrl(
-      namespace,
-      'dependency',
-      `${baseFilters.dependency} and spec.finding_categories contains [FINDING_CATEGORY_LICENSE_RISK]`,
-      baseUrl,
-    ),
-    operational: buildEndorFindingsUrl(
-      namespace,
-      'dependency',
-      `${baseFilters.dependency} and spec.finding_categories contains [FINDING_CATEGORY_OPERATIONAL]`,
-      baseUrl,
-    ),
-    scpm: buildEndorFindingsUrl(
-      namespace,
-      'repository',
-      `${baseFilters.repository} and spec.finding_categories contains [FINDING_CATEGORY_SCPM]`,
-      baseUrl,
-    ),
-    secrets: buildEndorFindingsUrl(
-      namespace,
-      'secrets',
-      baseFilters.secrets,
-      baseUrl,
-    ),
-    security: buildEndorFindingsUrl(
-      namespace,
-      'dependency',
-      `${baseFilters.dependency} and spec.finding_categories contains [FINDING_CATEGORY_SECURITY]`,
-      baseUrl,
-    ),
-    supply: buildEndorFindingsUrl(
-      namespace,
-      'dependency',
-      `${baseFilters.dependency} and spec.finding_categories contains [FINDING_CATEGORY_SUPPLY_CHAIN]`,
-      baseUrl,
-    ),
+  const renderErrorContent = () => {
+    if (!error) return null;
+    
+    switch (error.errorType) {
+      case EndorErrorType.MISSING_ANNOTATION:
+        return (
+          <WarningPanel
+            title="Missing annotation"
+            severity="info"
+          >
+            Please add one of these annotations to your catalog yaml file:
+            <CodeSnippet
+              text={
+                `endorlabs.com/project-uuid: <your project uuid>
+backstage.io/source-location: <your repository url>
+github.com/project-slug: <owner>/<repo>`
+              }
+              language={'YAML'}
+            />
+          </WarningPanel>
+        );
+        
+      case EndorErrorType.PROJECT_NOT_FOUND:
+        return (
+          <WarningPanel
+            title="Project not found"
+            severity="warning"
+          >
+            The project UUID '{projectUUID}' does not exist in Endor Labs.
+          </WarningPanel>
+        );
+        
+      case EndorErrorType.REPO_NOT_FOUND:
+        return (
+          <WarningPanel
+            title="Repository not scanned"
+            severity="warning"
+          >
+            The repository '{repoUrl}' has not been scanned in Endor Labs yet.
+          </WarningPanel>
+        );
+        
+      case EndorErrorType.API_ERROR:
+      default:
+        return (
+          <ErrorPanel
+            title="API Error"
+            error={new Error(error.message || "Connection error to Endor Labs API")}
+          >
+            Please verify your API credentials and configuration.
+          </ErrorPanel>
+        );
+    }
   };
 
   return (
     <Page themeId="tool">
       {error ? (
-        <WarningPanel
-          title="Entity missing annotation"
-          message={
-            <>
-              Please add the following annotations into your catalog yaml file
-              to include data from Endor Labs:
-            </>
-          }
-        >
-          <CodeSnippet
-            text={
-              'endorlabs.com/namespace: <your namespace>\nendorlabs.com/project-uuid: <your project uuid>'
-            }
-            language={'YAML'}
-          />
-        </WarningPanel>
+        renderErrorContent()
       ) : (
         <>
           <Header
             title="Endor Labs"
-            subtitle="Software Supply Chain Security Without the Productivity Tax"
+            subtitle="AppSec for the Software Development Revolution"
           >
-            <HeaderLabel label="Endor Namespace" value={namespace} />
+            <HeaderLabel label="Endor Namespace" value={projectSummary.namespace} />
             <HeaderLabel label="Project Name" value={projectSummary.name} />
           </Header>
           <Content>
@@ -172,13 +242,13 @@ export const EndorPage = () => {
               <Grid item xs={12}>
                 <InfoCard
                   title="Vulnerabilities"
-                  subheader="Endor Labs has performed function-level reachability analysis of your project to help you prioritise your remediation"
+                  subheader="To help developers and security teams make informed decisions for SCA results, Endor Labs leverages a static analysis technique called program analysis to perform function-level reachability analysis on direct and transitive dependencies. This is the most accurate way to determine exploitability in the context of your application, which is critical for determining which risks should be remediated."
                 >
                   <BarChart
                     layout="horizontal"
                     margin={{ left: 75 }}
                     yAxis={[
-                      { scaleType: 'band', data: ['Total', 'Reachable'] },
+                      { scaleType: 'band', data: ['Total', 'Reachable'], width: 80 },
                     ]}
                     series={[
                       {
@@ -229,76 +299,92 @@ export const EndorPage = () => {
                   />
                 </InfoCard>
               </Grid>
-              <Grid item xs={6}>
-                <InfoCard title="Secure Repositories and Pipelines">
+              <Grid item xs={12} md={6}>
+                <InfoCard title="Code Dependencies">
+                  <StatusAccordion
+                    title={categories.malware.title}
+                    count={categories.malware.count}
+                    explanation={categories.malware.explanation}
+                    warningThreshold={categories.malware.warningThreshold}
+                    errorThreshold={categories.malware.errorThreshold}
+                    link={categories.malware.link}
+                  />
+                  <StatusAccordion
+                    title={categories.license.title}
+                    count={categories.license.count}
+                    explanation={categories.license.explanation}
+                    warningThreshold={categories.license.warningThreshold}
+                    errorThreshold={categories.license.errorThreshold}
+                    link={categories.license.link}
+                  />
+                  <StatusAccordion
+                    title={categories.operational.title}
+                    count={categories.operational.count}
+                    explanation={categories.operational.explanation}
+                    warningThreshold={categories.operational.warningThreshold}
+                    errorThreshold={categories.operational.errorThreshold}
+                    link={categories.operational.link}
+                  />
+                  <StatusAccordion
+                    title={categories.aiModels.title}
+                    count={categories.aiModels.count}
+                    explanation={categories.aiModels.explanation}
+                    warningThreshold={categories.aiModels.warningThreshold}
+                    errorThreshold={categories.aiModels.errorThreshold}
+                    link={categories.aiModels.link}
+                  />
+                </InfoCard>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <InfoCard title="CI/CD Security">
                     <StatusAccordion
-                      title="Source Code Posture Management"
-                      count={metrics.scpm}
-                      explanation="You have {count} findings for Source Code Posture Management. Strong information security practices are necessary to secure your open source code used in your development and delivery infrastructure."
-                      warningThreshold={1}
-                      errorThreshold={2}
-                      link={links.scpm}
+                      title={categories.scpm.title}
+                      count={categories.scpm.count}
+                      explanation={categories.scpm.explanation}
+                      warningThreshold={categories.scpm.warningThreshold}
+                      errorThreshold={categories.scpm.errorThreshold}
+                      link={categories.scpm.link}
                     />
                     <StatusAccordion
-                      title="Leaked Secrets"
-                      count={metrics.secrets}
-                      explanation="You have {count} potential secrets stored within your project's source code. Secrets are access credentials that provide access to key resources and services, such as passwords, API keys, and personal access tokens."
-                      warningThreshold={1}
-                      errorThreshold={1}
-                      link={links.secrets}
-                    />
-                    <StatusAccordion
-                      title="CI/CD Tooling"
-                      count={metrics.cicd}
-                      explanation="You have {count} findings for CI/CD policies which include unauthorized use of tools or you are missing a required tool (e.g., no SAST in place)."
-                      warningThreshold={1}
-                      errorThreshold={1}
-                      link={links.cicd}
+                      title={categories.cicd.title}
+                      count={categories.cicd.count}
+                      explanation={categories.cicd.explanation}
+                      warningThreshold={categories.cicd.warningThreshold}
+                      errorThreshold={categories.cicd.errorThreshold}
+                      link={categories.cicd.link}
                     />
                 </InfoCard>
               </Grid>
-              <Grid item xs={6}>
-                <InfoCard title="Secure Open Source Code">
-                  <StatusAccordion
-                    title="Malware"
-                    count={metrics.malware}
-                    explanation="You have {count} findings for malicious dependencies."
-                    warningThreshold={0}
-                    errorThreshold={1}
-                    link={links.malware}
-                  />
-                  <StatusAccordion
-                    title="License Risk"
-                    count={metrics.license}
-                    explanation="You have {count} dependencies which may introduce license risk such as missing licenses, conflicting licenses, or licenses which violate your policies."
-                    warningThreshold={1}
-                    errorThreshold={3}
-                    link={links.license}
-                  />
-                  <StatusAccordion
-                    title="Operational Risk"
-                    count={metrics.operational}
-                    explanation="You have {count} findings for operational risk including Outdated Dependencies, Unmaintained Dependencies, Unpinned Direct Dependencies, Unused Direct Dependencies, License Risks and more."
-                    warningThreshold={1}
-                    errorThreshold={5}
-                    link={links.operational}
-                  />
-                  <StatusAccordion
-                    title="Security Risk"
-                    count={metrics.security}
-                    explanation="You have {count} findings for security risk including Vulnerabilities, Missing Source Code, Leaked Secrets and more."
-                    warningThreshold={1}
-                    errorThreshold={5}
-                    link={links.security}
-                  />
-                  <StatusAccordion
-                    title="Supply Chain Risk"
-                    count={metrics.supply}
-                    explanation="You have {count} findings for supply chain risk including Typosquatting, Maliocious Packages and more."
-                    warningThreshold={1}
-                    errorThreshold={5}
-                    link={links.supply}
-                  />
+              <Grid item xs={12} md={6}>
+                <InfoCard title="First Party Code">
+                    <StatusAccordion
+                      title={categories.sast.title}
+                      count={categories.sast.count}
+                      explanation={categories.sast.explanation}
+                      warningThreshold={categories.sast.warningThreshold}
+                      errorThreshold={categories.sast.errorThreshold}
+                      link={categories.sast.link}
+                    />
+                    <StatusAccordion
+                      title={categories.secrets.title}
+                      count={categories.secrets.count}
+                      explanation={categories.secrets.explanation}
+                      warningThreshold={categories.secrets.warningThreshold}
+                      errorThreshold={categories.secrets.errorThreshold}
+                      link={categories.secrets.link}
+                    />
+                </InfoCard>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <InfoCard title="Container Security">
+                    <StatusAccordion
+                      title={categories.containers.title}
+                      count={categories.containers.count}
+                      explanation={categories.containers.explanation}
+                      warningThreshold={categories.containers.warningThreshold}
+                      errorThreshold={categories.containers.errorThreshold}
+                      link={categories.containers.link}
+                    />
                 </InfoCard>
               </Grid>
             </Grid>
